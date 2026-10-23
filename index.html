@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}</style>
+<title>MixColumns Stepper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Layout: one centred working column; inputs on top, numbered derivation steps below, bits set in a mono grid */
+:root {
+  --bg: #F3F6F7;
+  --surface: #FFFFFF;
+  --ink: #14212B;
+  --muted: #5A6A74;
+  --line: #D5DDE1;
+  --accent: #0B6A86;
+  --accent-soft: #E0EFF3;
+  --hot: #B0521A;
+  --hot-soft: #FBE7D9;
+  --ok: #2B7A4B;
+  --ok-soft: #E2F2E8;
+  --err: #B3261E;
+  --f-head: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D151A; --surface: #142027; --ink: #E2EBEF; --muted: #93A3AD; --line: #26353E;
+    --accent: #52B5D1; --accent-soft: #16313B; --hot: #F0A262; --hot-soft: #3A2616;
+    --ok: #6CCB92; --ok-soft: #173225; --err: #FF8A80; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D151A; --surface: #142027; --ink: #E2EBEF; --muted: #93A3AD; --line: #26353E;
+  --accent: #52B5D1; --accent-soft: #16313B; --hot: #F0A262; --hot-soft: #3A2616;
+  --ok: #6CCB92; --ok-soft: #173225; --err: #FF8A80; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+}
+.wrap { max-width: 960px; margin: 0 auto; display: grid; gap: 28px; }
+header { display: grid; gap: 10px; }
+h1 { font-family: var(--f-head); font-weight: 800; font-size: clamp(28px, 5vw, 40px); letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 65ch; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px; }
+.fact { font-family: var(--f-mono); font-size: 12.5px; padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--surface); }
+.fact b { color: var(--ink); font-weight: 500; }
+
+.tabs { display: inline-flex; padding: 4px; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; justify-self: start; }
+.tabs button { font: 600 14px var(--f-body); border: 0; background: transparent; color: var(--muted); padding: 8px 14px; border-radius: 7px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--surface); }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 18px; }
+.inputs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 18px; }
+.field { display: grid; gap: 6px; }
+.field label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.hexin { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); overflow: hidden; }
+.hexin span { font-family: var(--f-mono); color: var(--muted); padding-left: 10px; font-size: 18px; }
+.hexin input { font: 500 26px var(--f-mono); width: 3.4ch; padding: 8px 10px 8px 4px; border: 0; background: transparent; color: var(--ink); text-transform: uppercase; }
+.hexin.wide input { width: 13ch; font-size: 22px; padding-left: 10px; }
+.hexin input:focus { outline: none; }
+.hexin:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.op { font: 500 26px var(--f-mono); color: var(--muted); padding-bottom: 10px; }
+.result { display: grid; gap: 6px; }
+.result .val { font: 700 26px var(--f-mono); color: var(--accent); background: var(--accent-soft); padding: 9px 14px; border-radius: 8px; letter-spacing: 0.02em; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+.chips button { font: 500 13px var(--f-mono); border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+.chips button:hover { border-color: var(--accent); color: var(--accent); }
+.chips .sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
+select { font: 500 14px var(--f-body); padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+.error { color: var(--err); font-weight: 500; margin: 0; }
+.note { color: var(--muted); font-size: 13.5px; margin: 0; max-width: 70ch; }
+
+.steps { display: grid; gap: 14px; }
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; display: grid; gap: 12px; min-width: 0; }
+.step-head { display: flex; gap: 12px; align-items: baseline; }
+.step-no { font: 700 13px var(--f-mono); color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 2px 8px; flex: none; }
+.step h2 { font-family: var(--f-head); font-size: 17px; font-weight: 700; margin: 0; text-wrap: balance; }
+.step p { margin: 0; max-width: 72ch; }
+.step.check .step-no { color: var(--ok); background: var(--ok-soft); }
+code, .m { font-family: var(--f-mono); font-size: 0.93em; }
+.k { font-family: var(--f-mono); font-weight: 700; color: var(--accent); }
+.hot { color: var(--hot); }
+
+.scroll { overflow-x: auto; min-width: 0; }
+table.bits { border-collapse: collapse; font-family: var(--f-mono); font-size: 14.5px; font-variant-numeric: tabular-nums; }
+table.bits td { padding: 3px 10px 3px 0; white-space: nowrap; vertical-align: baseline; }
+table.bits td.lbl { color: var(--muted); font-family: var(--f-body); font-size: 13px; padding-right: 14px; }
+table.bits td.sym { color: var(--muted); width: 1.6em; text-align: center; }
+table.bits td.hx { font-weight: 700; padding-left: 8px; }
+table.bits td.cm { color: var(--muted); font-family: var(--f-body); font-size: 13px; padding-left: 10px; white-space: normal; min-width: 14ch; }
+table.bits tr.total td { border-top: 2px solid var(--ink); padding-top: 6px; }
+table.bits tr.total td.lbl, table.bits tr.total td.cm { border-top-color: transparent; }
+.bit { display: inline-block; width: 1ch; text-align: center; }
+.bit.on { color: var(--ink); }
+.bit.off { color: var(--muted); opacity: 0.75; }
+.bit.flag { color: var(--hot); background: var(--hot-soft); border-radius: 3px; font-weight: 700; }
+.bit.drop { color: var(--hot); text-decoration: line-through; font-weight: 700; }
+.gap { display: inline-block; width: 0.6ch; }
+
+.xt-list { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.xt { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; min-width: 0; background: var(--bg); }
+.xt-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; font-weight: 600; }
+.pill { font: 600 11.5px var(--f-body); text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 8px; border-radius: 999px; }
+.pill.used { color: var(--accent); background: var(--accent-soft); }
+.pill.unused { color: var(--muted); border: 1px solid var(--line); }
+.pill.red { color: var(--hot); background: var(--hot-soft); }
+
+.table-poly { border-collapse: collapse; font-size: 14px; }
+.table-poly td { padding: 5px 14px 5px 0; vertical-align: baseline; border-bottom: 1px solid var(--line); }
+.table-poly tr:last-child td { border-bottom: 0; }
+.table-poly td:first-child { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.table-poly .m { white-space: nowrap; }
+
+/* Column mode */
+.eq { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; font-family: var(--f-mono); }
+.mat { display: grid; gap: 4px 10px; padding: 6px 10px; border-left: 2px solid var(--ink); border-right: 2px solid var(--ink); border-radius: 6px; font-size: 15px; font-variant-numeric: tabular-nums; }
+.mat.m4 { grid-template-columns: repeat(4, auto); }
+.mat.m1 { grid-template-columns: auto; }
+.mat.res span { color: var(--accent); font-weight: 700; }
+.eq .sym { color: var(--muted); font-size: 20px; }
+.row-formula { font-family: var(--f-mono); font-size: 14.5px; overflow-x: auto; white-space: nowrap; padding-bottom: 2px; }
+.prod-list { display: grid; gap: 8px; }
+details.prod { border: 1px solid var(--line); border-radius: 9px; background: var(--bg); min-width: 0; }
+details.prod > summary { cursor: pointer; padding: 9px 12px; font-family: var(--f-mono); font-size: 14.5px; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; list-style: none; }
+details.prod > summary::-webkit-details-marker { display: none; }
+details.prod > summary::before { content: "+"; color: var(--accent); font-weight: 700; width: 1ch; }
+details.prod[open] > summary::before { content: "\2212"; }
+details.prod > summary .hint { font-family: var(--f-body); font-size: 12.5px; color: var(--muted); }
+details.prod .inner { padding: 4px 12px 14px; display: grid; gap: 12px; }
+.inner h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 0; }
+
+footer { color: var(--muted); font-size: 13px; }
+@media (max-width: 520px) {
+  .panel, .step { padding: 16px 14px; }
+  .xt-list { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>MixColumns Stepper</h1>
+    <p class="lede">Multiply two hex bytes the way AES-192 MixColumns does, and see every shift, overflow and XOR. AES-192 uses exactly the same MixColumns step as AES-128 and AES-256; only the key schedule and round count differ.</p>
+    <div class="facts">
+      <span class="fact">field <b>GF(2<sup>8</sup>)</b></span>
+      <span class="fact">m(x) = <b>x<sup>8</sup> + x<sup>4</sup> + x<sup>3</sup> + x + 1</b></span>
+      <span class="fact">= <b>0x11B</b></span>
+      <span class="fact">addition = <b>XOR</b></span>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Mode">
+    <button role="tab" id="tab-pair" aria-selected="true" aria-controls="view-pair">Two bytes</button>
+    <button role="tab" id="tab-col" aria-selected="false" aria-controls="view-col">Full column</button>
+  </div>
+
+  <section id="view-pair" role="tabpanel" aria-labelledby="tab-pair" style="display:grid;gap:18px">
+    <div class="panel">
+      <div class="inputs">
+        <div class="field">
+          <label for="inA">Matrix constant</label>
+          <div class="hexin"><span>0x</span><input id="inA" maxlength="4" value="03" autocomplete="off" spellcheck="false"></div>
+        </div>
+        <div class="op" aria-hidden="true">&middot;</div>
+        <div class="field">
+          <label for="inB">State byte</label>
+          <div class="hexin"><span>0x</span><input id="inB" maxlength="4" value="D4" autocomplete="off" spellcheck="false"></div>
+        </div>
+        <div class="op" aria-hidden="true">=</div>
+        <div class="result">
+          <label class="field-l" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">Answer</label>
+          <div class="val" id="outPair">67</div>
+        </div>
+      </div>
+      <div class="chips" id="chipsA">
+        Constant:
+        <button data-v="01">01</button><button data-v="02">02</button><button data-v="03">03</button>
+        <span class="sep" aria-hidden="true"></span>
+        inverse:
+        <button data-v="09">09</button><button data-v="0B">0B</button><button data-v="0D">0D</button><button data-v="0E">0E</button>
+      </div>
+      <p class="error" id="errPair" hidden></p>
+      <p class="note">Enter each value as 1–2 hex digits. The first value is treated as the multiplier (02, 03 in forward MixColumns), so the steps break it into powers of x. The product is the same either way round.</p>
+    </div>
+    <div class="steps" id="stepsPair"></div>
+  </section>
+
+  <section id="view-col" role="tabpanel" aria-labelledby="tab-col" hidden style="display:grid;gap:18px">
+    <div class="panel">
+      <div class="inputs">
+        <div class="field">
+          <label for="inCol">State column (4 bytes, top to bottom)</label>
+          <div class="hexin wide"><input id="inCol" maxlength="20" value="D4 BF 5D 30" autocomplete="off" spellcheck="false"></div>
+        </div>
+        <div class="field">
+          <label for="inMat">Matrix</label>
+          <select id="inMat">
+            <option value="fwd">MixColumns (02 03 01 01)</option>
+            <option value="inv">InvMixColumns (0E 0B 0D 09)</option>
+          </select>
+        </div>
+        <div class="result">
+          <label style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">New column</label>
+          <div class="val" id="outCol">04 66 81 E5</div>
+        </div>
+      </div>
+      <p class="error" id="errCol" hidden></p>
+      <p class="note">Type 8 hex digits, with or without spaces. Each output byte is one matrix row times the column: four GF(2<sup>8</sup>) products XORed together. Open any product to see its full working.</p>
+    </div>
+    <div class="steps" id="stepsCol"></div>
+  </section>
+
+  <footer>Reduction rule used throughout: if a left shift pushes a 1 out of bit 7, XOR the result with 1B, because x<sup>8</sup> = x<sup>4</sup> + x<sup>3</sup> + x + 1 in this field.</footer>
+</div>
+
+<script id="gf">
+// Pure GF(2^8) arithmetic, no DOM access
+const M_POLY = 0x11B;
+const MIX = [[2, 3, 1, 1], [1, 2, 3, 1], [1, 1, 2, 3], [3, 1, 1, 2]];
+const INV = [[14, 11, 13, 9], [9, 14, 11, 13], [13, 9, 14, 11], [11, 13, 9, 14]];
+
+function hex2(n) { return n.toString(16).toUpperCase().padStart(2, "0"); }
+
+function parseByte(s) {
+  s = String(s).trim().replace(/^0x/i, "");
+  if (!/^[0-9a-f]{1,2}$/i.test(s)) return null;
+  return parseInt(s, 16);
+}
+
+function parseColumn(s) {
+  s = String(s).replace(/0x/gi, "").replace(/[\s,]+/g, "");
+  if (!/^[0-9a-f]{8}$/i.test(s)) return null;
+  return [0, 2, 4, 6].map(i => parseInt(s.slice(i, i + 2), 16));
+}
+
+function xtime(v) {
+  const overflow = (v & 0x80) !== 0;
+  const shifted = (v << 1) & 0xFF;
+  return { input: v, overflow, shifted, result: overflow ? shifted ^ 0x1B : shifted };
+}
+
+// a = constant (its bits pick terms), b = byte (gets doubled repeatedly)
+function gfMul(a, b) {
+  const chain = [{ power: 0, value: b, step: null }];
+  const top = a ? 31 - Math.clz32(a) : 0;
+  for (let i = 1; i <= top; i++) {
+    const st = xtime(chain[i - 1].value);
+    chain.push({ power: i, value: st.result, step: st });
+  }
+  const used = chain.filter(c => (a >> c.power) & 1);
+  const result = used.reduce((acc, c) => acc ^ c.value, 0);
+  return { a, b, chain, used, result };
+}
+
+// Carry-less multiply, then long division by m(x)
+function polyMul(a, b) {
+  const partials = [];
+  let product = 0;
+  for (let i = 0; i < 8; i++) {
+    if ((a >> i) & 1) { partials.push({ shift: i, value: b << i }); product ^= b << i; }
+  }
+  const reductions = [];
+  let r = product;
+  for (let d = 14; d >= 8; d--) {
+    if ((r >> d) & 1) {
+      const sub = M_POLY << (d - 8);
+      reductions.push({ degree: d, before: r, sub, after: r ^ sub });
+      r ^= sub;
+    }
+  }
+  return { partials, product, reductions, result: r };
+}
+
+function mixColumn(col, m) {
+  return m.map(row => {
+    const terms = row.map((k, c) => gfMul(k, col[c]));
+    return { row, terms, result: terms.reduce((x, t) => x ^ t.result, 0) };
+  });
+}
+</script>
+
+<script>
+const $ = id => document.getElementById(id);
+
+function bits(n, w = 8, opts = {}) {
+  let out = "";
+  for (let i = w - 1; i >= 0; i--) {
+    const b = (n >> i) & 1;
+    let cls = b ? "on" : "off";
+    if (opts.flag === i) cls = "flag";
+    out += `<span class="bit ${cls}">${b}</span>`;
+    if (i % 4 === 0 && i !== 0) out += `<span class="gap"></span>`;
+  }
+  return out;
+}
+
+function poly(n) {
+  if (!n) return "0";
+  const t = [];
+  for (let i = 15; i >= 0; i--) {
+    if ((n >> i) & 1) t.push(i === 0 ? "1" : i === 1 ? "x" : `x<sup>${i}</sup>`);
+  }
+  return t.join(" + ");
+}
+
+function powLabel(p) { return hex2(1 << p); }
+
+// rows: [{value, label}] → stacked XOR with total
+function xorStack(rows, total, totalLabel, w = 8) {
+  let h = `<div class="scroll"><table class="bits">`;
+  rows.forEach((r, i) => {
+    h += `<tr><td class="sym">${i ? "&oplus;" : ""}</td><td>${bits(r.value, w)}</td><td class="hx">${w > 8 ? hex2(r.value >> 8) + hex2(r.value & 0xFF) : hex2(r.value)}</td><td class="cm">${r.label}</td></tr>`;
+  });
+  h += `<tr class="total"><td class="sym">=</td><td>${bits(total, w)}</td><td class="hx k">${w > 8 ? hex2(total >> 8) + hex2(total & 0xFF) : hex2(total)}</td><td class="cm">${totalLabel}</td></tr>`;
+  return h + `</table></div>`;
+}
+
+function xtimeCard(c, b, used) {
+  const st = c.step;
+  const prevLbl = `${powLabel(c.power - 1)}&middot;${hex2(b)}`;
+  const lbl = `${powLabel(c.power)}&middot;${hex2(b)}`;
+  let h = `<div class="xt"><div class="xt-title"><span class="m">${lbl} = 02&middot;(${prevLbl})</span>`;
+  h += used ? `<span class="pill used">used</span>` : `<span class="pill unused">stepping stone</span>`;
+  h += `</div><div class="scroll"><table class="bits">`;
+  h += `<tr><td class="lbl">start</td><td>${bits(st.input, 8, { flag: st.overflow ? 7 : -1 })}</td><td class="hx">${hex2(st.input)}</td></tr>`;
+  h += `<tr><td class="lbl">shift left</td><td>${bits(st.shifted)}</td><td class="hx">${hex2(st.shifted)}</td></tr>`;
+  if (st.overflow) {
+    h += `<tr><td class="lbl hot">&oplus; 1B</td><td>${bits(0x1B)}</td><td class="hx">1B</td></tr>`;
+  }
+  h += `<tr class="total"><td class="lbl">result</td><td>${bits(st.result)}</td><td class="hx k">${hex2(st.result)}</td></tr>`;
+  h += `</table></div>`;
+  h += st.overflow
+    ? `<p class="note"><span class="hot">Bit 7 was 1</span>, so it overflowed out of the byte. XOR with 1B to reduce.</p>`
+    : `<p class="note">Bit 7 was 0, so nothing overflowed. The shift alone is the answer.</p>`;
+  return h + `</div>`;
+}
+
+function step(no, title, body, extra = "") {
+  return `<article class="step ${extra}"><div class="step-head"><span class="step-no">${no}</span><h2>${title}</h2></div>${body}</article>`;
+}
+
+// Full derivation for one product. compact=true drops the intro/cross-check for nested use.
+function renderMul(a, b, compact = false) {
+  const r = gfMul(a, b);
+  const A = hex2(a), B = hex2(b);
+  const parts = [];
+  let n = 1;
+
+  if (!compact) {
+    parts.push(step(n++, "Write both bytes in binary and as polynomials",
+      `<div class="scroll"><table class="table-poly">
+        <tr><td>Constant</td><td class="m k">${A}</td><td class="m">${bits(a)}</td><td class="m">${poly(a)}</td></tr>
+        <tr><td>State byte</td><td class="m k">${B}</td><td class="m">${bits(b)}</td><td class="m">${poly(b)}</td></tr>
+      </table></div>
+      <p class="note">Bit <i>i</i> of a byte is the coefficient of x<sup><i>i</i></sup>. Multiplying by 02 means multiplying by x.</p>`));
+  }
+
+  // Decompose the constant
+  let dec;
+  if (a === 0) dec = `<p>The constant is 00, so the product is 00. There is nothing to compute.</p>`;
+  else if (a === 1) dec = `<p>The constant is 01, which is the identity in GF(2<sup>8</sup>). The byte passes through unchanged: <span class="m">01&middot;${B} = <span class="k">${B}</span></span>.</p>`;
+  else {
+    const pieces = r.used.map(c => powLabel(c.power)).reverse();
+    const prods = r.used.map(c => `(${powLabel(c.power)}&middot;${B})`).reverse();
+    dec = pieces.length === 1
+      ? `<p><span class="m">${A}</span> is already a single power of x (<span class="m">${poly(a)}</span>), so we only need to double the byte ${r.chain.length - 1} time${r.chain.length > 2 ? "s" : ""}.</p>`
+      : `<p>Split the constant by its set bits: <span class="m">${A} = ${pieces.join(" &oplus; ")}</span> &nbsp;(${poly(a)}).</p>
+         <p>Multiplication distributes over XOR, so <span class="m">${A}&middot;${B} = ${prods.join(" &oplus; ")}</span>.</p>`;
+  }
+  parts.push(step(n++, "Split the constant into powers of x", dec));
+  if (a <= 1) return parts.join("");
+
+  // xtime chain
+  let chainHtml = "";
+  if (r.chain.length > 1) {
+    chainHtml = `<p>To multiply by 02 (xtime): shift the byte left one bit. If the bit that falls off the left was 1, XOR the result with <span class="m">1B</span>.</p>`;
+    chainHtml += `<div class="scroll"><table class="bits"><tr><td class="lbl">01&middot;${B}</td><td>${bits(b)}</td><td class="hx">${B}</td><td class="cm">the byte itself</td></tr></table></div>`;
+    chainHtml += `<div class="xt-list">${r.chain.slice(1).map(c => xtimeCard(c, b, (a >> c.power) & 1)).join("")}</div>`;
+  }
+  parts.push(step(n++, "Double the byte with xtime", chainHtml));
+
+  // Combine
+  const rows = r.used.slice().reverse().map(c => ({ value: c.value, label: `${powLabel(c.power)}&middot;${B}` }));
+  const combine = rows.length === 1
+    ? `<p>Only one term is needed, so the answer is <span class="m">${A}&middot;${B} = <span class="k">${hex2(r.result)}</span></span>.</p>`
+    : `<p>XOR the terms picked out in step ${n - 2}, bit by bit.</p>${xorStack(rows, r.result, `${A}&middot;${B}`)}`;
+  parts.push(step(n++, "XOR the needed terms together", combine));
+
+  if (compact) return parts.join("");
+
+  // Cross-check by polynomial long multiplication
+  const p = polyMul(a, b);
+  const pRows = p.partials.slice().reverse().map(x => ({ value: x.value, label: `${B} &times; x<sup>${x.shift}</sup>` }));
+  let ck = `<p>Multiply the polynomials without carries (XOR instead of add):</p>${xorStack(pRows, p.product, poly(p.product), 15)}`;
+  if (p.reductions.length) {
+    ck += `<p>The product has degree above 7, so divide by m(x) = 1 0001 1011. Each line cancels the highest bit above bit 7:</p>`;
+    let t = `<div class="scroll"><table class="bits">`;
+    p.reductions.forEach((rd, i) => {
+      t += `<tr><td class="lbl">${i ? "" : "product"}</td><td>${bits(rd.before, 15, { flag: rd.degree })}</td><td class="cm">x<sup>${rd.degree}</sup> is set</td></tr>`;
+      t += `<tr><td class="lbl hot">&oplus; m(x)&middot;x<sup>${rd.degree - 8}</sup></td><td>${bits(rd.sub, 15)}</td><td class="cm"></td></tr>`;
+    });
+    t += `<tr class="total"><td class="lbl">remainder</td><td>${bits(p.result, 15)}</td><td class="cm">${poly(p.result)}</td></tr></table></div>`;
+    ck += t;
+  } else {
+    ck += `<p>The product already fits in 8 bits (degree 7 or less), so no reduction is needed.</p>`;
+  }
+  const same = p.result === r.result;
+  ck += `<p>Remainder <span class="m k">${hex2(p.result)}</span> ${same ? "matches the xtime result." : "does not match. Please report this input."}</p>`;
+  parts.push(step("&check;", "Cross-check by polynomial division", ck, "check"));
+
+  return parts.join("");
+}
+
+function renderPair() {
+  const a = parseByte($("inA").value), b = parseByte($("inB").value);
+  const err = $("errPair");
+  if (a === null || b === null) {
+    err.textContent = `Enter 1–2 hex digits (0–9, A–F) in ${a === null ? "the constant" : "the state byte"}, like 02 or D4.`;
+    err.hidden = false; $("outPair").textContent = "??"; $("stepsPair").innerHTML = "";
+    return;
+  }
+  err.hidden = true;
+  $("outPair").textContent = hex2(gfMul(a, b).result);
+  $("stepsPair").innerHTML = renderMul(a, b);
+}
+
+function renderCol() {
+  const col = parseColumn($("inCol").value);
+  const err = $("errCol");
+  if (!col) {
+    err.textContent = "Enter exactly 8 hex digits, like D4 BF 5D 30.";
+    err.hidden = false; $("outCol").textContent = "?? ?? ?? ??"; $("stepsCol").innerHTML = "";
+    return;
+  }
+  err.hidden = true;
+  const m = $("inMat").value === "inv" ? INV : MIX;
+  const rows = mixColumn(col, m);
+  $("outCol").textContent = rows.map(r => hex2(r.result)).join(" ");
+
+  let h = step(1, "Set up the matrix product",
+    `<div class="eq">
+       <div class="mat m4">${m.flat().map(v => `<span>${hex2(v)}</span>`).join("")}</div>
+       <span class="sym">&middot;</span>
+       <div class="mat m1">${col.map(v => `<span>${hex2(v)}</span>`).join("")}</div>
+       <span class="sym">=</span>
+       <div class="mat m1 res">${rows.map(r => `<span>${hex2(r.result)}</span>`).join("")}</div>
+     </div>
+     <p class="note">Row i of the matrix times the column gives byte i of the new column. Multiplication is in GF(2<sup>8</sup>) and the sum is XOR.</p>`);
+
+  rows.forEach((r, i) => {
+    const formula = r.terms.map(t => `${hex2(t.a)}&middot;${hex2(t.b)}`).join(" &oplus; ");
+    let body = `<div class="row-formula">s&prime;<sub>${i}</sub> = ${formula}</div><div class="prod-list">`;
+    r.terms.forEach(t => {
+      const how = t.a === 1 ? "identity" : t.used.length === 1 ? "xtime only" : "xtime, then XOR";
+      body += `<details class="prod"><summary><span>${hex2(t.a)}&middot;${hex2(t.b)} = <span class="k">${hex2(t.result)}</span></span><span class="hint">${how} &middot; show steps</span></summary><div class="inner">${renderMul(t.a, t.b, true)}</div></details>`;
+    });
+    body += `</div>` + xorStack(r.terms.map(t => ({ value: t.result, label: `${hex2(t.a)}&middot;${hex2(t.b)}` })), r.result, `s&prime;<sub>${i}</sub>`);
+    h += step(i + 2, `Row ${i}: byte s&prime;<sub>${i}</sub> = ${hex2(r.result)}`, body);
+  });
+  $("stepsCol").innerHTML = h;
+}
+
+function selectTab(which) {
+  const pair = which === "pair";
+  $("tab-pair").setAttribute("aria-selected", pair);
+  $("tab-col").setAttribute("aria-selected", !pair);
+  $("view-pair").hidden = !pair;
+  $("view-col").hidden = pair;
+  try { localStorage.setItem("mc-tab", which); } catch (e) {}
+}
+
+$("tab-pair").addEventListener("click", () => selectTab("pair"));
+$("tab-col").addEventListener("click", () => selectTab("col"));
+$("inA").addEventListener("input", renderPair);
+$("inB").addEventListener("input", renderPair);
+$("inCol").addEventListener("input", renderCol);
+$("inMat").addEventListener("change", renderCol);
+$("chipsA").addEventListener("click", e => {
+  const v = e.target.closest("button")?.dataset.v;
+  if (v) { $("inA").value = v; renderPair(); }
+});
+
+renderPair();
+renderCol();
+try { if (localStorage.getItem("mc-tab") === "col") selectTab("col"); } catch (e) {}
+</script>
+</body>
+</html>
